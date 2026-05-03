@@ -1,0 +1,77 @@
+name: Nat-free-cloud Auto Task
+
+on:
+  schedule:
+    - cron: "25 1 */2 * *"   # 每2天 UTC 01:35 = 北京时间 09:35 (注意：UTC 01:35 是北京时间 09:35，注释原写08:35有误)
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Private Repo (Test-nat-free-cloud)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/Test-nat-free-cloud
+          token: ${{ secrets.GH_PAT }}
+      # ===============================================
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            xvfb xauth libnss3 libxss1 libasound2t64 \
+            libatk-bridge2.0-0 libgtk-3-0 libgbm1
+          python -m seleniumbase install chrome
+
+      - name: Download Proxy
+        run: |
+          SINGBOX_VERSION="1.13.11"
+          curl -fsSL \
+            "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-linux-amd64.tar.gz" \
+            -o singbox.tar.gz
+          tar -xzf singbox.tar.gz
+          mv "sing-box-${SINGBOX_VERSION}-linux-amd64/sing-box" ./sing-box
+          chmod +x ./sing-box
+          ./sing-box version
+
+      - name: Run
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+        run: python app.py
+
+      - name: Write time.txt
+        if: always()
+        run: |
+          TZ="Asia/Shanghai" date "+%Y-%m-%d %H:%M:%S BJT" >> time.txt
+
+      - name: Commit time.txt
+        if: always()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add time.txt
+          git diff --cached --quiet || git commit -m "chore: update time.txt [skip ci]"
+          git push
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ github.run_number }}
+          path: screenshots/
+          retention-days: 7
+          if-no-files-found: ignore
