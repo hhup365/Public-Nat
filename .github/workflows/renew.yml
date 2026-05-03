@@ -2,7 +2,7 @@ name: Nat-free-cloud Auto Task
 
 on:
   schedule:
-    - cron: "25 1 */2 * *"   # 每2天 UTC 01:35 = 北京时间 09:35 (注意：UTC 01:35 是北京时间 09:35，注释原写08:35有误)
+    - cron: "25 2 */2 * *"   # 每2天 UTC 01:25 = 北京时间 09:25
   workflow_dispatch:
 
 jobs:
@@ -13,12 +13,21 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout Private Repo (Test-nat-free-cloud)
+      
+      - name: 📥 检出当前仓库
+        uses: actions/checkout@v4
+
+      - name: 📥 拉取私库代码
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/Test-nat-free-cloud
           token: ${{ secrets.GH_PAT }}
-      # ===============================================
+          path: private_code
+
+      - name: 🔄 合并代码到工作区
+        run: |
+          rsync -a --exclude='.git' private_code/ ./
+          rm -rf private_code
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
