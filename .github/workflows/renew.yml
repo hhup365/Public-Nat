@@ -1,7 +1,7 @@
 name: Nat-free-cloud Auto Task
 on:
   schedule:
-    - cron: "15 5 */2 * *"
+    - cron: "15 2 */2 * *"
   workflow_dispatch:
 
 jobs:
